@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+  namespace: metabase
+  labels:
+    app: metabase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase
+  template:
+    metadata:
+      labels:
+        app: metabase
+    spec:
+      containers:
+      - name: metabase
+        image: metabase/metabase:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        # Database configuration using secrets
+        - name: MB_DB_TYPE
+          value: "postgres"
+        - name: MB_DB_DBNAME
+          valueFrom:
+            secretKeyRef:
+              name: metabase-database-secret
+              key: database-name
+        - name: MB_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: metabase-database-secret
+              key: database-user
+        - name: MB_DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: metabase-database-secret
+              key: database-password
+        - name: MB_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: metabase-database-secret
+              key: database-host
+        - name: MB_DB_PORT
+          value: "5432"
+        # Additional configurations from ConfigMap
+        - name: JAVA_TIMEZONE
+          valueFrom:
+            configMapKeyRef:
+              name: metabase-config
+              key: java-timezone
+        - name: JAVA_OPTS
+          valueFrom:
+            configMapKeyRef:
+              name: metabase-config
+              key: java-opts
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 120
+          periodSeconds: 30
